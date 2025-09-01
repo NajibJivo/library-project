@@ -2,6 +2,9 @@ package com.dk.ek.libraryproject.catalog.model;
 
 import jakarta.persistence.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "works")
 public class Work {
@@ -20,6 +23,9 @@ public class Work {
     private String authors;
     private String subjects;
 
+    @OneToMany(mappedBy = "work" , cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Edition> editions =  new ArrayList<>();
+
     public Work() {
         // Default constructor
     }
@@ -31,6 +37,17 @@ public class Work {
         this.details = details;
         this.authors = authors;
         this.subjects = subjects;
+    }
+
+    // Helper methods
+    public void addEdition(Edition e) {
+        editions.add(e);
+        e.setWork(this);
+    }
+
+    public void removeEdition(Edition e) {
+        editions.remove(e);
+        e.setWork(null);
     }
 
     // Getters & Setters
@@ -57,4 +74,8 @@ public class Work {
     public String getSubjects() {return subjects;}
 
     public void setSubjects(String subjects) {this.subjects = subjects;}
+
+    public List<Edition> getEditions() {return editions;}
+
+    public void setEditions(List<Edition> editions) {this.editions = editions;}
 }
