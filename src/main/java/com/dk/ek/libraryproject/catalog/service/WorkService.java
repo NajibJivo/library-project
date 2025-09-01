@@ -1,57 +1,72 @@
 package com.dk.ek.libraryproject.catalog.service;
 
+import com.dk.ek.libraryproject.catalog.dto.WorkDto;
+import com.dk.ek.libraryproject.catalog.mapper.LibraryMapper;
 import com.dk.ek.libraryproject.catalog.model.Work;
+import com.dk.ek.libraryproject.catalog.model.WorkType;
 import com.dk.ek.libraryproject.catalog.repository.WorkRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 public class WorkService {
-    private WorkRepository workRepository;
+    private final WorkRepository workRepo;
+    private final LibraryMapper mapper;
 
-    // Constructor injection
-    public WorkService(WorkRepository workRepository) {
-        this.workRepository = workRepository;
+    public WorkService(WorkRepository workRepo, LibraryMapper mapper) {
+        this.workRepo = workRepo;
+        this.mapper = mapper;
     }
 
-    /** CREATE ( Save a new Work entity). **/
-    public Work createWork(Work work) {
-        return workRepository.save(work); // Save a new Work entity
+    /** READ ALL -> DTO **/
+    @Transactional(readOnly = true)
+    public List<WorkDto> getAllWorks() {
+        return workRepo.findAll().stream().map(mapper::toDto).toList();
     }
 
-    /** READ LIST (Retrieve all Work entities). **/
-    public List<Work> getAllWorks() {
-        return workRepository.findAll();
+    /** READ BY ID -> DTO **/
+    @Transactional(readOnly = true)
+    public WorkDto getWorkById(Long id) {
+        Work work = workRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Work not found: " + id));
+        return mapper.toDto(work);
     }
 
-    /** READ BY ID ( Retrieve a Work entity by its ID). **/
-    public Work getWorkById(Long id) {
-        return workRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Work not found with id " + id));
+    /** CREATE: DTO in -> DTO out **/
+    public WorkDto createWork(WorkDto dto) {
+        Work toSave = mapper.toEntity(dto);
+        Work saved = workRepo.save(toSave);
+        return mapper.toDto(saved);
     }
 
-    /** UPDATE (Update an existing Work entity). **/
-    public Work updateWork(Long id, Work updated) {
-        Work existing = getWorkById(id);
-        existing.setTitle(updated.getTitle());
-        existing.setWorkType(updated.getWorkType());
-        existing.setDetails(updated.getDetails());
-        existing.setAuthors(updated.getAuthors());
-        existing.setSubjects(updated.getSubjects());
-        return workRepository.save(existing);
+    /** UPDATE: DTO in -> DTO out **/
+    public WorkDto updateWork(Long id, WorkDto dto) {
+        Work existing = workRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Work not found: " + id));
+
+        // opdater skalarfelter fra DTO
+        existing.setTitle(dto.title());
+        existing.setWorkType(dto.workType() == null ? null : WorkType.valueOf(dto.workType()));
+        existing.setDetails(dto.details());
+        existing.setAuthors(dto.author());
+        existing.setSubjects(dto.subjects());
+
+        // editions springer vi over i første omgang (kan tilføjes senere)
+        Work saved = workRepo.save(existing);
+        return mapper.toDto(saved);
     }
 
-    /** DELETE (Delete a Work entity by its ID). **/
+    /** DELETE **/
     public void deleteWorkById(Long id) {
-        if(!workRepository.existsById(id)) {
-            throw new RuntimeException("Work not found with id " + id);
-        }
-        workRepository.deleteById(id);
+        if (!workRepo.existsById(id)) throw new RuntimeException("Work not found: " + id);
+        workRepo.deleteById(id);
     }
 
-    /** SEARCH (Search for Work entities by title). **/
-    public List<Work> searchWorks(String title) {
-       return workRepository.findByTitleContainingIgnoreCase(title);
+    /** SEARCH -> DTO LIST **/
+    public List<WorkDto> searchWorksByTitle(String title) {
+        return workRepo.findByTitleContainingIgnoreCase(title)
+                .stream().map(mapper::toDto).toList();
     }
 }
