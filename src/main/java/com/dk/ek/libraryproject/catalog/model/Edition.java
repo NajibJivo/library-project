@@ -9,20 +9,21 @@ public class Edition{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "edition_number")
+    @Column(name = "edition_number", length = 50)
     private String editionNumber;
     // var "year"
     @Column(name = "publication_year")
     private Integer publicationYear;
-    @Column(name = "format_type")
+
+    @Column(name = "format_type", nullable = false)
     private String formatType; // mere robust end 'format' i nogle DB’er
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "publisher_id")
+    @JoinColumn(name = "publisher_id", nullable = false)
     private Publisher publisher;  // Unidirektionelt fra Edition -> Publisher
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "work_id")
+    @JoinColumn(name = "work_id",  nullable = false)
     private Work work;
 
 
@@ -30,7 +31,7 @@ public class Edition{
         // Default constructor
     }
 
-    public Edition(String editionNumber, int publicationYear, String formatType) {
+    public Edition(String editionNumber, Integer publicationYear, String formatType) {
         this.editionNumber = editionNumber;
         this.publicationYear = publicationYear;
         this.formatType = formatType;

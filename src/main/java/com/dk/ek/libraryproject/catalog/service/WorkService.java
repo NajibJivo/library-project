@@ -5,6 +5,8 @@ import com.dk.ek.libraryproject.catalog.mapper.LibraryMapper;
 import com.dk.ek.libraryproject.catalog.model.Work;
 import com.dk.ek.libraryproject.catalog.model.WorkType;
 import com.dk.ek.libraryproject.catalog.repository.WorkRepository;
+import com.dk.ek.libraryproject.shared.BadRequestException;
+import com.dk.ek.libraryproject.shared.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,13 +32,23 @@ public class WorkService {
     @Transactional(readOnly = true)
     public WorkDto getWorkById(Long id) {
         Work work = workRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Work not found: " + id));
+                .orElseThrow(() ->  new NotFoundException("Work " + id + " not found"));
         return mapper.toDto(work);
     }
 
     /** CREATE: DTO in -> DTO out **/
     public WorkDto createWork(WorkDto dto) {
+        // Precondition (giver 400 via  ApiException-handler, ikke 500)
+        if (dto.title() == null || dto.title().isBlank()) {
+            throw new BadRequestException("Title is required");
+        }
+        if (dto.author() == null || dto.author().isBlank()) {
+            throw new BadRequestException("Author is required");
+        }
+
+        // Mapperen håndterer workType (case-insensitiv + BAD_REQUEST ved ugyldig)
         Work toSave = mapper.toEntity(dto);
+
         Work saved = workRepo.save(toSave);
         return mapper.toDto(saved);
     }
@@ -44,7 +56,7 @@ public class WorkService {
     /** UPDATE: DTO in -> DTO out **/
     public WorkDto updateWork(Long id, WorkDto dto) {
         Work existing = workRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Work not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Work " + id + " not found"));
 
         // opdater skalarfelter fra DTO
         existing.setTitle(dto.title());
@@ -60,12 +72,15 @@ public class WorkService {
 
     /** DELETE **/
     public void deleteWorkById(Long id) {
-        if (!workRepo.existsById(id)) throw new RuntimeException("Work not found: " + id);
+        if (!workRepo.existsById(id)) new NotFoundException("Work " + id + " not found");
         workRepo.deleteById(id);
     }
 
     /** SEARCH -> DTO LIST **/
     public List<WorkDto> searchWorksByTitle(String title) {
+        if(title == null || title.isBlank()) {
+         throw new BadRequestException("Title must not be blank");
+        }
         return workRepo.findByTitleContainingIgnoreCase(title)
                 .stream().map(mapper::toDto).toList();
     }

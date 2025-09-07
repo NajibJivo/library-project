@@ -7,8 +7,10 @@ import com.dk.ek.libraryproject.catalog.model.Edition;
 import com.dk.ek.libraryproject.catalog.model.Publisher;
 import com.dk.ek.libraryproject.catalog.model.Work;
 import com.dk.ek.libraryproject.catalog.model.WorkType;
+import com.dk.ek.libraryproject.shared.BadRequestException;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -16,14 +18,17 @@ import java.util.Locale;
 @Component
 public class LibraryMapper {
 
+    // String -> enum (case-insensitiv). Valgfrit felt: null/blank => null
     public WorkType toWorkType(String s) {
         if(s == null || s.isBlank()) {
-            throw new RuntimeException("workType is required");
+            return null;
         }
         try{
             return WorkType.valueOf(s.trim().toUpperCase(Locale.ROOT));
         }catch (IllegalArgumentException ex){
-            throw new IllegalArgumentException(String.format("Invalid workType: " + s));
+            //  ApiException-type, så det bliver 400 i handleren
+            throw new BadRequestException("Invalid workType: " + s +
+                    " . Allowed: " + java.util.Arrays.toString(WorkType.values()));
         }
     }
 
@@ -36,7 +41,13 @@ public class LibraryMapper {
     }
 
     public WorkDto toDto(Work work) {
-        List<EditionDto> eds = work.getEditions().stream().map(this::toDto).toList();
+        // null-sikker editions og undgå LazyInitialization fejl udenfor tx
+        List<EditionDto> eds = new ArrayList<>();
+        if(work.getEditions() != null) {
+            for(Edition e : work.getEditions()) {
+                eds.add(toDto(e));
+            }
+        }
 
         return new WorkDto(
                 work.getId(),
@@ -70,12 +81,12 @@ public class LibraryMapper {
         );
     }
 
-   // DTO -> Entity (kun skalarfelter nu)
+   // DTO -> Entity (skalarfelter; relationer håndteres i service)
     public Work toEntity(WorkDto dto) {
         Work w = new Work();
         w.setId(dto.id()); // ok at være null ved create
         w.setTitle(dto.title());
-        w.setWorkType(toWorkType(dto.workType()));
+        w.setWorkType(toWorkType(dto.workType())); // nu valgfri + 400 på ugyldig
         w.setDetails(dto.details());
         w.setAuthors(dto.author());
         w.setSubjects(dto.subjects());
